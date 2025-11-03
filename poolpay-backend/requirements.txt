@@ -1,0 +1,11 @@
+sqlmodel
+fastapi
+uvicorn[standard]
+python-dotenv
+pymysql
+cryptography
+sqlalchemy
+alembic
+mercadopago
+email-validator
+
