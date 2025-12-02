@@ -8,7 +8,7 @@
 - 🎨 [**Frontend README**](poolpay-frontend/README.md) - UI y componentes
 - 💳 [**Guía MercadoPago**](poolpay-backend/PAGOS_AUTOMATICOS.md) - Configuración del webhook
 
-# PoolPay 💧 - Sistema de Gestión de Piscinas con Pagos Automáticos
+## 📁 Estructura del Proyecto
 
 ```
 TPS-APP/
@@ -32,17 +32,17 @@ TPS-APP/
 ├── IMPLEMENTACION_COMPLETA.md    # Documentación técnica
 └── run.bat                        # Ejecuta todo el sistema
 ```
-  - Links de pago personalizados
-  - Transferencias al CBU de MercadoPago
-  - Registro automático vía webhook
-- ✅ **Dashboard** con estadísticas en tiempo real
+
+## 🔧 Tecnologías
+
+**Backend:**
 - FastAPI - Framework web moderno
 - SQLModel - ORM con validación Pydantic
 - MySQL/SQLite - Base de datos
 - MercadoPago SDK - Procesamiento de pagos
 - Uvicorn - Servidor ASGI
 
-### Requisitos
+**Frontend:**
 - React 18 + TypeScript - UI framework
 - Tailwind CSS - Estilos utility-first
 - Vite - Build tool rápido
@@ -104,72 +104,3 @@ MIT License - ver archivo LICENSE
 **Valentino Castaldi**  
 📧 tinocastaldi04@gmail.com
 
-### Instalación
-
-1. **Clona el repositorio:**
-```bash
-git clone https://github.com/TU_USUARIO/poolpay.git
-cd poolpay
-```
-
-2. **Configura el Backend:**
-```bash
-cd poolpay-backend
-
-# Crea y activa entorno virtual
-python -m venv .venv
-.venv\Scripts\activate
-
-# Instala dependencias
-pip install -r requirements.txt
-
-# Copia y configura variables de entorno
-copy .env.example .env
-# Edita .env y agrega tu MERCADOPAGO_ACCESS_TOKEN
-```
-
-3. **Configura el Frontend:**
-```bash
-cd ..\poolpay-frontend
-
-# Asegúrate de usar Node 18
-nvm use 18
-
-# Instala dependencias
-npm install
-```
-
-4. **Ejecuta el proyecto completo:**
-```bash
-cd ..
-run.bat
-```
-
-Accede a:
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-## 📁 Estructura del Proyecto
-
-- `poolpay-backend/` - API REST con FastAPI
-- `poolpay-frontend/` - Interfaz con React + TypeScript + Tailwind
-- `run.bat` - Script para ejecutar backend y frontend simultáneamente
-
-## 📚 Documentación
-
-- Backend: Ver `poolpay-backend/README.md`
-- Frontend: Ver `poolpay-frontend/README.md`
-- API: `http://localhost:8000/docs` (al ejecutar)
-
-## 🔧 Tecnologías
-
-**Backend:**
-- FastAPI
-- SQLite
-- Pydantic
-- MercadoPago SDK
-
-**Frontend:**
-- React 18
-- TypeScript
-- Tailwind CSS
-- Axios
