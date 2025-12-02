@@ -59,20 +59,30 @@ async def create_payment_link(
 @router.post("/webhook")
 async def mercadopago_webhook(request: Request, session: Session = Depends(get_session)):
     """
-    Webhook para recibir notificaciones de MercadoPago
+    Webhook para recibir notificaciones de MercadoPago (AUTOMÁTICO)
 
     Se llama automáticamente cuando:
-    - Un pago es aprobado
+    - Un pago es aprobado (link de pago O transferencia a tu CBU de MercadoPago)
     - Un pago es rechazado
     - Un pago está pendiente
+
+    Este endpoint registra automáticamente los pagos en el sistema sin intervención manual.
     """
     try:
         # Obtener datos del webhook
         data = await request.json()
 
+        # Log para debugging
+        print(f"[WEBHOOK MP] Recibido: {data}")
+
         # MercadoPago envía diferentes tipos de notificaciones
-        if data.get("type") == "payment":
-            payment_id = data["data"]["id"]
+        notification_type = data.get("type") or data.get("topic")
+
+        if notification_type == "payment":
+            payment_id = data.get("data", {}).get("id") or data.get("id")
+
+            if not payment_id:
+                return {"status": "error", "message": "No payment_id found"}
 
             # Obtener información del pago
             payment_info = MercadoPagoService.get_payment_info(str(payment_id))
@@ -80,10 +90,22 @@ async def mercadopago_webhook(request: Request, session: Session = Depends(get_s
             if payment_info["success"]:
                 payment_data = payment_info["payment"]
 
+                print(f"[WEBHOOK MP] Payment status: {payment_data.get('status')}")
+
                 # Verificar si el pago fue aprobado
                 if payment_data["status"] == "approved":
                     # Extraer el invoice_id de la referencia externa
                     external_ref = payment_data.get("external_reference", "")
+
+                    # Verificar si ya existe este pago para evitar duplicados
+                    existing = session.exec(
+                        select(Payment).where(Payment.notes.contains(f"MercadoPago Payment ID: {payment_id}"))
+                    ).first()
+
+                    if existing:
+                        print(f"[WEBHOOK MP] Pago {payment_id} ya registrado, ignorando duplicado")
+                        return {"status": "ok", "message": "Pago ya registrado"}
+
                     if external_ref.startswith("invoice_"):
                         invoice_id = int(external_ref.replace("invoice_", ""))
 
@@ -96,7 +118,7 @@ async def mercadopago_webhook(request: Request, session: Session = Depends(get_s
                                 paid_at=datetime.now(timezone.utc),
                                 method="mercado_pago",
                                 amount=float(payment_data["transaction_amount"]),
-                                notes=f"MercadoPago Payment ID: {payment_id}"
+                                notes=f"MercadoPago Payment ID: {payment_id} | Método: {payment_data.get('payment_method_id', 'N/A')} | Tipo: {payment_data.get('payment_type_id', 'N/A')}"
                             )
                             session.add(payment)
 
@@ -106,7 +128,7 @@ async def mercadopago_webhook(request: Request, session: Session = Depends(get_s
                             ).all()
                             total_amount = sum(p.amount for p in total_paid) + payment.amount
 
-                            if total_amount >= invoice.total:
+                            if total_amount >= invoice.total - 0.01:  # tolerancia centavos
                                 invoice.status = "pagado"
                             elif total_amount > 0:
                                 invoice.status = "parcial"
@@ -114,12 +136,20 @@ async def mercadopago_webhook(request: Request, session: Session = Depends(get_s
                             session.add(invoice)
                             session.commit()
 
-                            return {"status": "ok", "message": "Pago registrado"}
+                            print(f"[WEBHOOK MP] ✅ Pago registrado: Invoice #{invoice_id}, Monto: ${payment.amount}")
+
+                            return {"status": "ok", "message": "Pago registrado automáticamente"}
+                        else:
+                            print(f"[WEBHOOK MP] ⚠️ Invoice {invoice_id} no encontrada")
+                    else:
+                        print(f"[WEBHOOK MP] ⚠️ External reference no válida: {external_ref}")
 
         return {"status": "ok"}
 
     except Exception as e:
-        print(f"Error en webhook de MercadoPago: {e}")
+        print(f"[WEBHOOK MP] ❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
 @router.get("/payment/{payment_id}")

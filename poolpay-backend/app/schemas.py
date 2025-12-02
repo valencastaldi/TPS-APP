@@ -13,8 +13,9 @@ class ClientCreate(BaseModel):
     whatsapp: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
+    neighborhood: Optional[str] = None
     plan: Plan
-    price: float
+    price: Optional[float] = Field(default=None, description="Precio del plan; si se omite queda 0.0")
     is_active: Optional[bool] = True
 
 class ClientUpdate(BaseModel):
@@ -23,6 +24,7 @@ class ClientUpdate(BaseModel):
     whatsapp: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
+    neighborhood: Optional[str] = None
     plan: Optional[Plan] = None
     price: Optional[float] = None
     is_active: Optional[bool] = None
@@ -78,4 +80,3 @@ class PaymentResponse(BaseModel):
 class BillingGenerate(BaseModel):
     period: str  # Formato: "YYYY-MM"
     due_day: Optional[int] = 10
-

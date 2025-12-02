@@ -1,13 +1,25 @@
 import { useEffect, useState } from 'react'
 import { clientsApi } from '../api/clients'
-import { Plus, Edit, Trash2, Phone } from 'lucide-react'
+import { Plus, Edit, Trash2, Phone, MapPin, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Client, ClientCreate } from '../types'
 
+const NEIGHBORHOODS = [
+  'CUATRO HOJAS',
+  'TERRON',
+  'ESTANCIA Q2',
+  'ZONA GOLF',
+  'VALLE DEL SOL',
+  'SAN ALFONSO',
+  'SAN ISIDRO',
+  'VILLA ALLENDE',
+] as const
+
 const Clients = () => {
-  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const [grouped, setGrouped] = useState<{ neighborhood: string; count: number; clients: Client[] }[]>([])
+  const [expandedNeighborhoods, setExpandedNeighborhoods] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadClients()
@@ -15,13 +27,26 @@ const Clients = () => {
 
   const loadClients = async () => {
     try {
-      const data = await clientsApi.getAll()
-      setClients(data)
+      setLoading(true)
+      const data = await clientsApi.getGroupedByNeighborhood()
+      setGrouped(data)
     } catch (error) {
       console.error('Error loading clients:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleNeighborhood = (neighborhood: string) => {
+    setExpandedNeighborhoods((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(neighborhood)) {
+        newSet.delete(neighborhood)
+      } else {
+        newSet.add(neighborhood)
+      }
+      return newSet
+    })
   }
 
   const handleDelete = async (id: number) => {
@@ -43,14 +68,17 @@ const Clients = () => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
 
+    const priceRaw = formData.get('price') as string | null
+
     const clientData: ClientCreate = {
       name: formData.get('name') as string,
-      phone: formData.get('phone') as string || undefined,
-      whatsapp: formData.get('whatsapp') as string || undefined,
-      address: formData.get('address') as string || undefined,
-      city: formData.get('city') as string || undefined,
+      phone: (formData.get('phone') as string) || undefined,
+      whatsapp: (formData.get('whatsapp') as string) || undefined,
+      address: (formData.get('address') as string) || undefined,
+      city: (formData.get('city') as string) || undefined,
+      neighborhood: (formData.get('neighborhood') as string) || undefined,
       plan: formData.get('plan') as 'semanal' | 'quincenal' | 'mensual',
-      price: Number(formData.get('price')),
+      price: priceRaw ? Number(priceRaw) : undefined, // opcional
       is_active: formData.get('is_active') === 'on',
     }
 
@@ -75,7 +103,7 @@ const Clients = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">Clientes</h2>
+        <h2 className="text-3xl font-bold text-gray-800">Clientes por Barrio</h2>
         <button
           onClick={() => {
             setEditingClient(null)
@@ -105,7 +133,7 @@ const Clients = () => {
                   name="name"
                   defaultValue={editingClient?.name}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                 />
               </div>
 
@@ -118,7 +146,7 @@ const Clients = () => {
                     type="text"
                     name="phone"
                     defaultValue={editingClient?.phone}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   />
                 </div>
                 <div>
@@ -129,7 +157,7 @@ const Clients = () => {
                     type="text"
                     name="whatsapp"
                     defaultValue={editingClient?.whatsapp}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   />
                 </div>
               </div>
@@ -142,20 +170,43 @@ const Clients = () => {
                   type="text"
                   name="address"
                   defaultValue={editingClient?.address}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ciudad
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  defaultValue={editingClient?.city}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ciudad
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    defaultValue={editingClient?.city}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Barrio
+                  </label>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                    <select
+                      name="neighborhood"
+                      defaultValue={editingClient?.neighborhood}
+                      required
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                    >
+                      <option value="">Seleccione un barrio</option>
+                      {NEIGHBORHOODS.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -176,14 +227,13 @@ const Clients = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Precio *
+                    Precio (opcional)
                   </label>
                   <input
                     type="number"
                     name="price"
                     step="0.01"
                     defaultValue={editingClient?.price}
-                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -225,91 +275,135 @@ const Clients = () => {
         </div>
       )}
 
-      {/* Clients Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cliente
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contacto
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Plan
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Precio
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Estado
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {clients.map((client) => (
-              <tr key={client.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                  {client.city && (
-                    <div className="text-sm text-gray-500">{client.city}</div>
+      {/* Vista agrupada por barrio - Acordeón */}
+      <div className="space-y-4">
+        {grouped.map((g) => {
+          const isExpanded = expandedNeighborhoods.has(g.neighborhood)
+          return (
+            <div key={g.neighborhood} className="bg-white rounded-lg border shadow-sm overflow-hidden">
+              {/* Header del acordeón */}
+              <button
+                onClick={() => toggleNeighborhood(g.neighborhood)}
+                className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {isExpanded ? (
+                    <ChevronDown className="w-5 h-5 text-gray-600" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5 text-gray-600" />
                   )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    {client.phone && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {client.phone}
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                    {client.plan}
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                  <h4 className="font-semibold text-gray-800 text-lg">{g.neighborhood}</h4>
+                  <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    {g.count} {g.count === 1 ? 'cliente' : 'clientes'}
                   </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  ${client.price.toFixed(2)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      client.is_active
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {client.is_active ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => handleEdit(client)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </button>
 
-        {clients.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            No hay clientes registrados
+              {/* Contenido expandible */}
+              {isExpanded && (
+                <div className="border-t">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Cliente
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Contacto
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Plan
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Precio
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Estado
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Acciones
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {g.clients.map((client) => (
+                          <tr key={client.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                              {client.address && (
+                                <div className="text-sm text-gray-500">{client.address}</div>
+                              )}
+                              {client.city && (
+                                <div className="text-xs text-gray-400">{client.city}</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-1 text-sm text-gray-500">
+                                {client.phone && (
+                                  <span className="flex items-center gap-1">
+                                    <Phone className="w-3 h-3" />
+                                    {client.phone}
+                                  </span>
+                                )}
+                                {client.whatsapp && client.whatsapp !== client.phone && (
+                                  <span className="flex items-center gap-1 text-green-600">
+                                    <Phone className="w-3 h-3" />
+                                    {client.whatsapp}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                {client.plan}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              ${client.price.toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  client.is_active
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                {client.is_active ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => handleEdit(client)}
+                                className="text-blue-600 hover:text-blue-900 mr-3"
+                                title="Editar"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(client.id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {grouped.length === 0 && (
+          <div className="bg-white rounded-lg border shadow-sm p-12 text-center text-gray-500">
+            No hay clientes registrados. Haz clic en "Nuevo Cliente" para agregar uno.
           </div>
         )}
       </div>
@@ -318,4 +412,3 @@ const Clients = () => {
 }
 
 export default Clients
-

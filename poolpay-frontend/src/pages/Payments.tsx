@@ -28,7 +28,15 @@ const Payments = () => {
       transferencia: 'bg-blue-100 text-blue-800',
       mercado_pago: 'bg-purple-100 text-purple-800',
     }
-    return styles[method as keyof typeof styles] || 'bg-gray-100 text-gray-800'
+    const labels = {
+      efectivo: '💵 Efectivo',
+      transferencia: '🏦 Transferencia',
+      mercado_pago: '🤖 MercadoPago (Auto)',
+    }
+    return {
+      style: styles[method as keyof typeof styles] || 'bg-gray-100 text-gray-800',
+      label: labels[method as keyof typeof labels] || method,
+    }
   }
 
   if (loading) {
@@ -129,11 +137,11 @@ const Payments = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${getMethodBadge(
-                      payment.method
-                    )}`}
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      getMethodBadge(payment.method).style
+                    }`}
                   >
-                    {payment.method}
+                    {getMethodBadge(payment.method).label}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

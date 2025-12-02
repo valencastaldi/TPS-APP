@@ -9,6 +9,7 @@ export interface Client {
   whatsapp?: string;
   address?: string;
   city?: string;
+  neighborhood?: string;
   plan: Plan;
   price: number;
   is_active: boolean;
@@ -21,8 +22,9 @@ export interface ClientCreate {
   whatsapp?: string;
   address?: string;
   city?: string;
+  neighborhood?: string;
   plan: Plan;
-  price: number;
+  price?: number; // ahora opcional
   is_active?: boolean;
 }
 
@@ -32,6 +34,7 @@ export interface ClientUpdate {
   whatsapp?: string;
   address?: string;
   city?: string;
+  neighborhood?: string;
   plan?: Plan;
   price?: number;
   is_active?: boolean;
@@ -102,4 +105,3 @@ export interface GeneralStats {
   total_collected: number;
   pending_collection: number;
 }
-

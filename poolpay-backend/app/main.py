@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db import init_db
 from app.routers import clients, invoices, payments, billing, mercadopago
+from app.routers import bank
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,6 +33,7 @@ app.include_router(invoices.router)
 app.include_router(payments.router)
 app.include_router(billing.router)
 app.include_router(mercadopago.router)
+app.include_router(bank.router)
 
 @app.get("/")
 def root():
@@ -45,6 +47,7 @@ def root():
             "invoices": "/invoices",
             "payments": "/payments",
             "billing": "/billing",
-            "mercadopago": "/mercadopago"
+            "mercadopago": "/mercadopago",
+            "bank": "/bank"
         }
     }

@@ -8,6 +8,11 @@ export const clientsApi = {
     return data;
   },
 
+  getGroupedByNeighborhood: async () => {
+    const { data } = await api.get<{ neighborhood: string; count: number; clients: Client[] }[]>('/clients/group/by-neighborhood');
+    return data;
+  },
+
   getById: async (id: number) => {
     const { data } = await api.get<Client>(`/clients/${id}`);
     return data;
@@ -27,4 +32,3 @@ export const clientsApi = {
     await api.delete(`/clients/${id}`);
   },
 };
-

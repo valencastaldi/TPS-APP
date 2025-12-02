@@ -4,6 +4,8 @@ from datetime import date
 from app.db import get_session
 from app.models import Client, Invoice, Payment
 from app.schemas import BillingGenerate
+from app.services.mercadopago_service import MercadoPagoService
+from app.services.billing import generate_invoices as generate_invoices_service
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -151,3 +153,91 @@ def get_general_stats(session: Session = Depends(get_session)):
         "pending_collection": total_billed - total_collected
     }
 
+
+@router.post('/create-payment-links')
+def create_payment_links(period: str | None = None, session: Session = Depends(get_session)):
+    """Crear links de MercadoPago para facturas pendientes.
+
+    Si se provee `period` (YYYY-MM) solo se procesan las facturas de ese periodo,
+    si no, se procesan todas las facturas con estado 'pendiente'.
+
+    Este endpoint NO guarda las preferencias en la base de datos; devuelve
+    una lista con el resultado de la creación por factura.
+    """
+    # Obtener facturas pendientes
+    q = select(Invoice).where(Invoice.status == 'pendiente')
+    if period:
+        q = q.where(Invoice.period == period)
+
+    invoices = session.exec(q).all()
+    results = []
+
+    for inv in invoices:
+        client = session.get(Client, inv.client_id)
+        if not client:
+            results.append({"invoice_id": inv.id, "ok": False, "error": "Cliente no encontrado"})
+            continue
+
+        # Construir email/contacto
+        client_email = client.whatsapp or client.phone or None
+        if client_email and "@" not in client_email:
+            client_email = f"{client_email}@poolpay.com"
+        if not client_email:
+            client_email = f"cliente{client.id}@poolpay.local"
+
+        # Llamar a MercadoPago
+        mp_res = MercadoPagoService.create_payment_link(
+            title=f"Factura #{inv.id} - Período {inv.period}",
+            amount=inv.total,
+            client_email=client_email,
+            external_reference=f"invoice_{inv.id}",
+            description=f"Factura automática para {client.name}"
+        )
+
+        if mp_res.get('success'):
+            results.append({
+                "invoice_id": inv.id,
+                "ok": True,
+                "preference_id": mp_res.get('preference_id'),
+                "payment_link": mp_res.get('init_point')
+            })
+        else:
+            results.append({"invoice_id": inv.id, "ok": False, "error": mp_res.get('error')})
+
+    return {"count": len(results), "results": results}
+
+
+@router.post('/auto-generate-and-create-links')
+def auto_generate_and_create_links(payload: BillingGenerate, session: Session = Depends(get_session)):
+    """Generar facturas para un periodo y crear links de MercadoPago para las nuevas facturas.
+
+    Retorna cuántas facturas se crearon y los links generados para las nuevas facturas.
+    """
+    # Generar facturas (usa el servicio que ya existe)
+    created = generate_invoices_service(session, payload.period, payload.due_day)
+
+    # Buscar las facturas del periodo que estén pendientes
+    q = select(Invoice).where(Invoice.period == payload.period, Invoice.status == 'pendiente')
+    invoices = session.exec(q).all()
+
+    # Crear links para las facturas pendientes (incluye las nuevas)
+    links_res = []
+    for inv in invoices:
+        client = session.get(Client, inv.client_id)
+        client_email = client.whatsapp or client.phone or None
+        if client_email and "@" not in client_email:
+            client_email = f"{client_email}@poolpay.com"
+        if not client_email:
+            client_email = f"cliente{client.id}@poolpay.local"
+
+        mp_res = MercadoPagoService.create_payment_link(
+            title=f"Factura #{inv.id} - Período {inv.period}",
+            amount=inv.total,
+            client_email=client_email,
+            external_reference=f"invoice_{inv.id}",
+            description=f"Factura generada automáticamente"
+        )
+
+        links_res.append({"invoice_id": inv.id, "mercadopago": mp_res})
+
+    return {"created_invoices": created, "links": links_res}

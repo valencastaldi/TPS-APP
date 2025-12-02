@@ -10,6 +10,7 @@ class Client(SQLModel, table=True):
     whatsapp: Optional[str] = Field(default=None, sa_column=Column(String(30)))
     address: Optional[str] = Field(default=None, sa_column=Column(String(200)))
     city: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    neighborhood: Optional[str] = Field(default=None, sa_column=Column(String(80)))  # Barrio
     plan: str = Field(sa_column=Column(String(20)))  # "semanal", "quincenal", "mensual"
     price: float = 0.0
     is_active: bool = True
@@ -35,4 +36,3 @@ class Payment(SQLModel, table=True):
     method: str = Field(sa_column=Column(String(20)))  # "efectivo", "transferencia", "mercado_pago"
     amount: float
     notes: Optional[str] = None
-
