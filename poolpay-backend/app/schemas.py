@@ -1,6 +1,6 @@
 from typing import Optional, Literal
 from datetime import date, datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 Plan = Literal["semanal", "quincenal", "mensual"]
 Status = Literal["pendiente", "pagado", "parcial", "vencido"]
@@ -45,6 +45,8 @@ class InvoiceUpdate(BaseModel):
     due_date: Optional[date] = None
 
 class InvoiceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     client_id: int
     period: str
@@ -55,9 +57,6 @@ class InvoiceResponse(BaseModel):
     total: float
     status: str
 
-    class Config:
-        from_attributes = True
-
 # Payment Schemas
 class PaymentCreate(BaseModel):
     invoice_id: int
@@ -66,15 +65,14 @@ class PaymentCreate(BaseModel):
     notes: Optional[str] = None
 
 class PaymentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     invoice_id: int
     paid_at: datetime
     method: str
     amount: float
     notes: Optional[str]
-
-    class Config:
-        from_attributes = True
 
 # Billing Schemas
 class BillingGenerate(BaseModel):

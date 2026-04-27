@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { billingApi } from '../api/billing'
-import { Calendar, Send, AlertCircle } from 'lucide-react'
+import { Calendar, Send, AlertCircle, Download } from 'lucide-react'
 import type { BillingGenerate } from '../types'
 
 const Billing = () => {
   const [period, setPeriod] = useState('')
   const [dueDay, setDueDay] = useState(10)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
 
@@ -27,6 +28,18 @@ const Billing = () => {
       setError(err.response?.data?.detail || 'Error al generar facturas')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleExport = async () => {
+    if (!period) return
+    setExporting(true)
+    try {
+      await billingApi.exportExcel(period)
+    } catch {
+      setError('No hay facturas para ese período o error al exportar.')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -88,14 +101,26 @@ const Billing = () => {
               </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
-            >
-              <Send className="w-4 h-4" />
-              {loading ? 'Generando...' : 'Generar Facturas'}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 text-sm font-medium"
+              >
+                <Send className="w-4 h-4" />
+                {loading ? 'Generando...' : 'Generar Facturas'}
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting || !period}
+                title="Descargar Excel del período"
+                className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 text-sm font-medium"
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? 'Exportando...' : 'Excel'}
+              </button>
+            </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-blue-900 mb-2">

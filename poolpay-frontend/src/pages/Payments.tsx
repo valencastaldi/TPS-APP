@@ -1,173 +1,156 @@
 import { useEffect, useState } from 'react'
 import { paymentsApi } from '../api/payments'
-import { Wallet, DollarSign } from 'lucide-react'
+import { invoicesApi } from '../api/invoices'
+import { clientsApi } from '../api/clients'
+import { Wallet, Banknote, Smartphone } from 'lucide-react'
 import type { Payment } from '../types'
+import Spinner from '../components/Spinner'
+import ErrorState from '../components/ErrorState'
+
+const ars = (n: number) =>
+  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
+
+const METHOD_CONFIG: Record<string, { label: string; className: string; icon: React.ElementType }> = {
+  efectivo:      { label: 'Efectivo',      className: 'bg-emerald-100 text-emerald-800', icon: Banknote },
+  transferencia: { label: 'Transferencia', className: 'bg-blue-100 text-blue-800',       icon: Wallet },
+  mercado_pago:  { label: 'MercadoPago',   className: 'bg-violet-100 text-violet-800',   icon: Smartphone },
+}
+
+const MethodBadge = ({ method }: { method: string }) => {
+  const cfg = METHOD_CONFIG[method] ?? { label: method, className: 'bg-slate-100 text-slate-700', icon: Wallet }
+  const Icon = cfg.icon
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${cfg.className}`}>
+      <Icon className="w-3 h-3" />
+      {cfg.label}
+    </span>
+  )
+}
 
 const Payments = () => {
   const [payments, setPayments] = useState<Payment[]>([])
+  const [clientByInvoice, setClientByInvoice] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadPayments()
-  }, [])
+  useEffect(() => { loadPayments() }, [])
 
   const loadPayments = async () => {
+    setError(null)
+    setLoading(true)
     try {
-      const data = await paymentsApi.getAll()
-      setPayments(data)
-    } catch (error) {
-      console.error('Error loading payments:', error)
+      const [payData, invData, cliData] = await Promise.all([
+        paymentsApi.getAll(),
+        invoicesApi.getAll(),
+        clientsApi.getAll(),
+      ])
+      setPayments(payData)
+      const clientById = Object.fromEntries(cliData.map((c) => [c.id, c.name]))
+      const map: Record<number, string> = {}
+      for (const inv of invData) {
+        map[inv.id] = clientById[inv.client_id] ?? `Cliente #${inv.client_id}`
+      }
+      setClientByInvoice(map)
+    } catch (err: any) {
+      setError(err.response?.data?.detail || err.message || 'Error al cargar pagos')
     } finally {
       setLoading(false)
     }
   }
 
-  const getMethodBadge = (method: string) => {
-    const styles = {
-      efectivo: 'bg-green-100 text-green-800',
-      transferencia: 'bg-blue-100 text-blue-800',
-      mercado_pago: 'bg-purple-100 text-purple-800',
-    }
-    const labels = {
-      efectivo: '💵 Efectivo',
-      transferencia: '🏦 Transferencia',
-      mercado_pago: '🤖 MercadoPago (Auto)',
-    }
-    return {
-      style: styles[method as keyof typeof styles] || 'bg-gray-100 text-gray-800',
-      label: labels[method as keyof typeof labels] || method,
-    }
-  }
-
-  if (loading) {
-    return <div className="text-center py-12">Cargando pagos...</div>
-  }
+  if (loading) return <Spinner text="Cargando pagos..." />
+  if (error) return <ErrorState message={error} onRetry={loadPayments} />
 
   const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0)
+  const byMethod = payments.reduce<Record<string, number>>((acc, p) => {
+    acc[p.method] = (acc[p.method] ?? 0) + p.amount
+    return acc
+  }, {})
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">Pagos</h2>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800">Pagos</h1>
+        <p className="text-slate-500 text-sm mt-1">Historial de cobros registrados</p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total Pagos</p>
-              <p className="text-2xl font-bold text-gray-800">{payments.length}</p>
-            </div>
-            <Wallet className="w-8 h-8 text-blue-500" />
-          </div>
+      {/* Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Total pagos</p>
+          <p className="text-3xl font-bold text-slate-800">{payments.length}</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Monto Total</p>
-              <p className="text-2xl font-bold text-green-600">
-                ${totalAmount.toFixed(2)}
-              </p>
-            </div>
-            <DollarSign className="w-8 h-8 text-green-500" />
-          </div>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Monto total</p>
+          <p className="text-3xl font-bold text-emerald-600">{ars(totalAmount)}</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Promedio</p>
-              <p className="text-2xl font-bold text-gray-800">
-                ${payments.length > 0 ? (totalAmount / payments.length).toFixed(2) : '0.00'}
-              </p>
-            </div>
-            <DollarSign className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
-      </div>
-
-      {/* Payments Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Factura
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Fecha
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Método
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Monto
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Notas
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {payments.map((payment) => (
-              <tr key={payment.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-medium text-gray-900">
-                    #{payment.id}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-900">
-                    Factura #{payment.invoice_id}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(payment.paid_at).toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      getMethodBadge(payment.method).style
-                    }`}
-                  >
-                    {getMethodBadge(payment.method).label}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-bold text-green-600">
-                    ${payment.amount.toFixed(2)}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="text-sm text-gray-500">
-                    {payment.notes || '-'}
-                  </span>
-                </td>
-              </tr>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Por método</p>
+          <div className="space-y-1.5">
+            {Object.entries(byMethod).map(([method, amount]) => (
+              <div key={method} className="flex justify-between text-sm">
+                <MethodBadge method={method} />
+                <span className="font-medium text-slate-700">{ars(amount)}</span>
+              </div>
             ))}
-          </tbody>
-        </table>
-
-        {payments.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            No hay pagos registrados
+            {Object.keys(byMethod).length === 0 && (
+              <p className="text-sm text-slate-400">Sin datos</p>
+            )}
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead>
+              <tr className="bg-slate-50">
+                <Th>ID</Th>
+                <Th>Factura</Th>
+                <Th>Fecha</Th>
+                <Th>Método</Th>
+                <Th>Monto</Th>
+                <Th>Notas</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {payments.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-3.5 text-sm font-mono text-slate-400">#{p.id}</td>
+                  <td className="px-5 py-3.5">
+                    <p className="text-sm font-medium text-slate-800">{clientByInvoice[p.invoice_id] ?? '—'}</p>
+                    <p className="text-xs text-slate-400">Factura #{p.invoice_id}</p>
+                  </td>
+                  <td className="px-5 py-3.5 text-sm text-slate-500 whitespace-nowrap">
+                    {new Date(p.paid_at).toLocaleDateString('es-AR', {
+                      day: '2-digit', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </td>
+                  <td className="px-5 py-3.5"><MethodBadge method={p.method} /></td>
+                  <td className="px-5 py-3.5 text-sm font-bold text-emerald-600">{ars(p.amount)}</td>
+                  <td className="px-5 py-3.5 text-sm text-slate-400 max-w-xs truncate">{p.notes || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {payments.length === 0 && (
+            <div className="text-center py-16 text-slate-400 text-sm">
+              No hay pagos registrados
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-export default Payments
+const Th = ({ children }: { children: React.ReactNode }) => (
+  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+    {children}
+  </th>
+)
 
+export default Payments

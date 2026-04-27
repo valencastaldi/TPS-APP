@@ -5,6 +5,7 @@ from typing import Optional
 from app.db import get_session
 from app.models import Invoice, Payment, Client
 from app.services.mercadopago_service import MercadoPagoService
+from app.services.billing import recalculate_invoice_status
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/mercadopago", tags=["mercadopago"])
@@ -121,19 +122,9 @@ async def mercadopago_webhook(request: Request, session: Session = Depends(get_s
                                 notes=f"MercadoPago Payment ID: {payment_id} | Método: {payment_data.get('payment_method_id', 'N/A')} | Tipo: {payment_data.get('payment_type_id', 'N/A')}"
                             )
                             session.add(payment)
+                            session.flush()
 
-                            # Actualizar estado de la factura
-                            total_paid = session.exec(
-                                select(Payment).where(Payment.invoice_id == invoice_id)
-                            ).all()
-                            total_amount = sum(p.amount for p in total_paid) + payment.amount
-
-                            if total_amount >= invoice.total - 0.01:  # tolerancia centavos
-                                invoice.status = "pagado"
-                            elif total_amount > 0:
-                                invoice.status = "parcial"
-
-                            session.add(invoice)
+                            recalculate_invoice_status(session, invoice)
                             session.commit()
 
                             print(f"[WEBHOOK MP] ✅ Pago registrado: Invoice #{invoice_id}, Monto: ${payment.amount}")

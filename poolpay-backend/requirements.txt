@@ -8,4 +8,12 @@ sqlalchemy
 alembic
 mercadopago
 email-validator
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+openpyxl
+
+# Testing
+pytest
+httpx
 

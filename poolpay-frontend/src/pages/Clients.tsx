@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { clientsApi } from '../api/clients'
-import { Plus, Edit, Trash2, Phone, MapPin, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Edit, Trash2, Phone, MapPin, ChevronDown, ChevronRight, Map } from 'lucide-react'
 import type { Client, ClientCreate } from '../types'
+import Spinner from '../components/Spinner'
+import ErrorState from '../components/ErrorState'
+import ClientMap from '../components/ClientMap'
 
 const NEIGHBORHOODS = [
   'CUATRO HOJAS',
@@ -16,8 +19,10 @@ const NEIGHBORHOODS = [
 
 const Clients = () => {
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const [mapClient, setMapClient] = useState<Client | null>(null)
   const [grouped, setGrouped] = useState<{ neighborhood: string; count: number; clients: Client[] }[]>([])
   const [expandedNeighborhoods, setExpandedNeighborhoods] = useState<Set<string>>(new Set())
 
@@ -26,12 +31,13 @@ const Clients = () => {
   }, [])
 
   const loadClients = async () => {
+    setError(null)
+    setLoading(true)
     try {
-      setLoading(true)
       const data = await clientsApi.getGroupedByNeighborhood()
       setGrouped(data)
-    } catch (error) {
-      console.error('Error loading clients:', error)
+    } catch (err: any) {
+      setError(err.response?.data?.detail || err.message || 'Error al cargar clientes')
     } finally {
       setLoading(false)
     }
@@ -96,20 +102,24 @@ const Clients = () => {
     }
   }
 
-  if (loading) {
-    return <div className="text-center py-12">Cargando clientes...</div>
-  }
+  if (loading) return <Spinner text="Cargando clientes..." />
+  if (error) return <ErrorState message={error} onRetry={loadClients} />
 
   return (
+    <>
+    {mapClient && <ClientMap client={mapClient} onClose={() => setMapClient(null)} />}
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">Clientes por Barrio</h2>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Clientes</h1>
+          <p className="text-slate-500 text-sm mt-1">Organizados por barrio</p>
+        </div>
         <button
           onClick={() => {
             setEditingClient(null)
             setShowForm(true)
           }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
         >
           <Plus className="w-5 h-5" />
           Nuevo Cliente
@@ -276,11 +286,11 @@ const Clients = () => {
       )}
 
       {/* Vista agrupada por barrio - Acordeón */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {grouped.map((g) => {
           const isExpanded = expandedNeighborhoods.has(g.neighborhood)
           return (
-            <div key={g.neighborhood} className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div key={g.neighborhood} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               {/* Header del acordeón */}
               <button
                 onClick={() => toggleNeighborhood(g.neighborhood)}
@@ -376,6 +386,13 @@ const Clients = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <button
+                                onClick={() => setMapClient(client)}
+                                className="text-slate-400 hover:text-blue-600 mr-3 transition-colors"
+                                title="Ver en mapa"
+                              >
+                                <Map className="w-4 h-4" />
+                              </button>
+                              <button
                                 onClick={() => handleEdit(client)}
                                 className="text-blue-600 hover:text-blue-900 mr-3"
                                 title="Editar"
@@ -402,12 +419,13 @@ const Clients = () => {
         })}
 
         {grouped.length === 0 && (
-          <div className="bg-white rounded-lg border shadow-sm p-12 text-center text-gray-500">
-            No hay clientes registrados. Haz clic en "Nuevo Cliente" para agregar uno.
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-16 text-center text-slate-400 text-sm">
+            No hay clientes registrados. Hacé clic en "Nuevo Cliente" para agregar uno.
           </div>
         )}
       </div>
     </div>
+    </>
   )
 }
 

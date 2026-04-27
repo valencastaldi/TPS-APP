@@ -5,6 +5,7 @@ from datetime import datetime, date, timezone
 from sqlmodel import Session, select
 from app.db import get_session
 from app.models import Invoice, Payment, Client
+from app.services.billing import recalculate_invoice_status
 
 router = APIRouter(prefix="/bank", tags=["bank"])
 
@@ -95,17 +96,9 @@ def process_bank_transactions(payload: BankImportRequest, session: Session = Dep
                 notes=f"Banco TX: {tx.transaction_id or ''} | ref:{tx.reference or ''} | desc:{tx.description or ''}"
             )
             session.add(payment)
+            session.flush()
 
-            # actualizar estado de la factura
-            total_paid = sum(p.amount for p in session.exec(select(Payment).where(Payment.invoice_id == best_invoice.id)).all()) + 0.0
-            # recalcular con el nuevo pago incluido
-            total_paid = total_paid
-            if total_paid >= best_invoice.total - 0.01:
-                best_invoice.status = 'pagado'
-            elif total_paid > 0:
-                best_invoice.status = 'parcial'
-
-            session.add(best_invoice)
+            recalculate_invoice_status(session, best_invoice)
             session.commit()
 
             results.append({

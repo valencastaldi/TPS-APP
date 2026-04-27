@@ -3,7 +3,7 @@ from sqlmodel import select
 from typing import Optional
 from app.db import get_session
 from app.models import Invoice, Payment
-from app.schemas import InvoiceCreate, InvoiceUpdate, InvoiceResponse
+from app.schemas import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaymentResponse
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -80,7 +80,7 @@ def delete_invoice(invoice_id: int, session=Depends(get_session)):
     session.commit()
     return {"ok": True}
 
-@router.get("/{invoice_id}/payments", response_model=list)
+@router.get("/{invoice_id}/payments", response_model=list[PaymentResponse])
 def get_invoice_payments(invoice_id: int, session=Depends(get_session)):
     """Obtener todos los pagos de una factura"""
     invoice = session.get(Invoice, invoice_id)
