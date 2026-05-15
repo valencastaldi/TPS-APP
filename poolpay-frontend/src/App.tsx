@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Invoices from './pages/Invoices'
 import Payments from './pages/Payments'
+import OrphanPayments from './pages/OrphanPayments'
 import Billing from './pages/Billing'
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
             <Route path="clients" element={<Clients />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="orphan-payments" element={<OrphanPayments />} />
             <Route path="billing" element={<Billing />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

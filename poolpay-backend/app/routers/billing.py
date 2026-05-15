@@ -8,6 +8,15 @@ from app.models import Client, Invoice, Payment
 from app.schemas import BillingGenerate
 from app.services.mercadopago_service import MercadoPagoService
 from app.services.billing import generate_invoices as generate_invoices_service
+from app.services.billing_scheduler import (
+    run_monthly_billing,
+    _current_period,
+    _next_run_at,
+    BILLING_RUN_DAY,
+    BILLING_RUN_HOUR,
+    BILLING_DUE_DAY,
+)
+from app.services.reminders import run_reminders_once
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -153,6 +162,35 @@ def get_general_stats(session: Session = Depends(get_session)):
         "total_billed": total_billed,
         "total_collected": total_collected,
         "pending_collection": total_billed - total_collected
+    }
+
+
+@router.post("/run-now")
+def billing_run_now(period: str | None = None, due_day: int | None = None):
+    """Dispara la generación automática del mes en curso (o del período pasado).
+
+    Útil para probar o forzar la corrida sin esperar al scheduler.
+    """
+    target_period = period or _current_period()
+    created = run_monthly_billing(target_period, due_day=due_day)
+    return {"period": target_period, "created": created}
+
+
+@router.post("/reminders/run-now")
+def reminders_run_now():
+    """Dispara la corrida de recordatorios de cobranza ahora mismo (sin esperar al cron)."""
+    return run_reminders_once()
+
+
+@router.get("/scheduler-status")
+def billing_scheduler_status():
+    """Estado del scheduler de facturación mensual."""
+    return {
+        "current_period": _current_period(),
+        "run_day": BILLING_RUN_DAY,
+        "run_hour": BILLING_RUN_HOUR,
+        "due_day": BILLING_DUE_DAY,
+        "next_run_utc": _next_run_at().isoformat(),
     }
 
 

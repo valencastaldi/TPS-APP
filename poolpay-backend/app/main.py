@@ -5,9 +5,11 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.db import init_db
 from app.auth import require_auth
-from app.routers import clients, invoices, payments, billing, mercadopago, bank
+from app.routers import clients, invoices, payments, billing, mercadopago, bank, orphan_payments
 from app.routers.auth import router as auth_router
 from app.services.overdue import mark_overdue_sync, overdue_scheduler
+from app.services.billing_scheduler import billing_scheduler
+from app.services.reminders import reminders_scheduler
 
 
 @asynccontextmanager
@@ -15,10 +17,16 @@ async def lifespan(app: FastAPI):
     # ── Startup ──────────────────────────────────────────────
     init_db()
     mark_overdue_sync()  # verificar vencimientos al arrancar
-    task = asyncio.create_task(overdue_scheduler())  # loop cada 24hs
+
+    tasks = [
+        asyncio.create_task(overdue_scheduler()),       # vencidas (24h)
+        asyncio.create_task(billing_scheduler()),       # facturación mensual
+        asyncio.create_task(reminders_scheduler()),     # recordatorios diarios
+    ]
     yield
     # ── Shutdown ─────────────────────────────────────────────
-    task.cancel()
+    for t in tasks:
+        t.cancel()
 
 
 # CORS — en producción setear BACKEND_CORS_ORIGINS en .env
@@ -52,6 +60,7 @@ app.include_router(invoices.router, dependencies=_auth)
 app.include_router(payments.router, dependencies=_auth)
 app.include_router(billing.router, dependencies=_auth)
 app.include_router(bank.router, dependencies=_auth)
+app.include_router(orphan_payments.router, dependencies=_auth)
 app.include_router(mercadopago.router)  # webhook sin auth (lo llama MP)
 
 

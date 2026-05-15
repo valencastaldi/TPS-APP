@@ -86,6 +86,9 @@ async def require_auth(
     """Acepta CUALQUIERA de los dos métodos: API Key o JWT.
 
     Usado en los routers: máquinas usan API Key, el panel web usa JWT.
+
+    🔒 IMPORTANTE: si querés correr en modo sin auth para hacer pruebas locales
+    rapidísimas, exportá `ALLOW_NO_AUTH=true`. NUNCA hagas eso en producción.
     """
     # 1. API Key (máquina a máquina)
     if _API_KEY and api_key == _API_KEY:
@@ -98,9 +101,10 @@ async def require_auth(
                 return
         except JWTError:
             pass
-    # 3. Sin credenciales en dev
-    if not _API_KEY and SECRET_KEY == "cambia-esta-clave-secreta-por-una-generada":
-        return  # modo dev sin config
+    # 3. Sin credenciales: solo se permite si el operador lo pidió EXPLÍCITAMENTE
+    #    con ALLOW_NO_AUTH=true (para tests locales). Por defecto, 401.
+    if os.getenv("ALLOW_NO_AUTH", "false").lower() in ("1", "true", "yes"):
+        return
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Autenticación requerida",

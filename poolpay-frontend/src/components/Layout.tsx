@@ -1,18 +1,45 @@
+import { useEffect, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, Wallet, TrendingUp, Droplets, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Wallet, TrendingUp, Droplets, LogOut, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { orphanPaymentsApi } from '../api/orphanPayments'
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/clients', icon: Users, label: 'Clientes' },
   { path: '/invoices', icon: FileText, label: 'Facturas' },
   { path: '/payments', icon: Wallet, label: 'Pagos' },
+  { path: '/orphan-payments', icon: AlertTriangle, label: 'Sin asignar', badge: 'orphans' as const },
   { path: '/billing', icon: TrendingUp, label: 'Facturación' },
 ]
 
 const Layout = () => {
   const { username, logout } = useAuth()
   const navigate = useNavigate()
+  const [orphanCount, setOrphanCount] = useState<number>(0)
+
+  useEffect(() => {
+    const loadCount = async () => {
+      try {
+        const n = await orphanPaymentsApi.pendingCount()
+        setOrphanCount(n)
+      } catch {
+        // silencio en caso de error de auth/red
+      }
+    }
+    loadCount()
+    const interval = setInterval(loadCount, 30000)  // refresca cada 30s
+
+    // También refresca al instante cuando la página de huérfanos avisa
+    // que se asignó o descartó algo.
+    const onChanged = () => { loadCount() }
+    window.addEventListener('orphan-payments:changed', onChanged)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('orphan-payments:changed', onChanged)
+    }
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -38,7 +65,7 @@ const Layout = () => {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map(({ path, icon: Icon, label }) => (
+          {navItems.map(({ path, icon: Icon, label, badge }) => (
             <NavLink
               key={path}
               to={path}
@@ -51,7 +78,12 @@ const Layout = () => {
               }
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
-              <span>{label}</span>
+              <span className="flex-1">{label}</span>
+              {badge === 'orphans' && orphanCount > 0 && (
+                <span className="bg-amber-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {orphanCount > 99 ? '99+' : orphanCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

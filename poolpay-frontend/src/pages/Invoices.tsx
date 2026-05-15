@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { invoicesApi } from '../api/invoices'
 import { clientsApi } from '../api/clients'
 import { paymentsApi } from '../api/payments'
-import { Filter, CreditCard, X, CheckCircle } from 'lucide-react'
+import { mercadopagoApi } from '../api/mercadopago'
+import { Filter, CreditCard, X, CheckCircle, Link2, Copy, ExternalLink } from 'lucide-react'
 import type { Invoice, Client, PaymentMethod } from '../types'
 import Spinner from '../components/Spinner'
 import ErrorState from '../components/ErrorState'
@@ -171,15 +172,77 @@ const PayModal = ({ invoice, clientName, onClose, onSuccess }: PayModalProps) =>
   )
 }
 
+// ── Modal de link MP ─────────────────────────────────────────────────────────
+const PaymentLinkModal = ({
+  invoice, clientName, link, onClose,
+}: { invoice: Invoice; clientName: string; link: string; onClose: () => void }) => {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {/* noop */}
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="bg-violet-100 rounded-lg p-2">
+              <Link2 className="w-5 h-5 text-violet-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800">Link de pago MercadoPago</h3>
+              <p className="text-sm text-slate-500">Factura #{invoice.id} · {clientName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-700 break-all">{link}</div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleCopy}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              {copied ? '¡Copiado!' : 'Copiar link'}
+            </button>
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Abrir
+            </a>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Mandá este link al cliente. Cuando pague, el sistema registra el pago automáticamente
+            por el webhook de MercadoPago.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ─────────────────────────────────────────────────────────
 const Invoices = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [clientsById, setClientsById] = useState<Record<number, Client>>({})
   const [clients, setClients] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState('')
   const [periodFilter, setPeriodFilter] = useState('')
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null)
+  const [linkInfo, setLinkInfo] = useState<{ invoice: Invoice; link: string } | null>(null)
+  const [loadingLinkId, setLoadingLinkId] = useState<number | null>(null)
 
   useEffect(() => { loadData() }, [statusFilter, periodFilter])
 
@@ -197,10 +260,37 @@ const Invoices = () => {
       ])
       setInvoices(invData)
       setClients(Object.fromEntries(cliData.map((c) => [c.id, c.name])))
+      setClientsById(Object.fromEntries(cliData.map((c) => [c.id, c])))
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Error al cargar facturas')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGenerateLink = async (inv: Invoice) => {
+    setLoadingLinkId(inv.id)
+    try {
+      const client = clientsById[inv.client_id]
+      const candidate = client?.whatsapp || client?.phone || ''
+      const email = candidate.includes('@')
+        ? candidate
+        : `cliente${inv.client_id}@poolpay.local`
+
+      const res = await mercadopagoApi.createPaymentLink({
+        invoice_id: inv.id,
+        client_email: email,
+        description: `Factura #${inv.id} - ${inv.period}`,
+      })
+      if (res.success && res.payment_link) {
+        setLinkInfo({ invoice: inv, link: res.payment_link })
+      } else {
+        alert(`No se pudo crear el link: ${res.error || 'error desconocido'}`)
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.detail || err.message || 'Error al crear el link')
+    } finally {
+      setLoadingLinkId(null)
     }
   }
 
@@ -220,6 +310,15 @@ const Invoices = () => {
           clientName={clients[payingInvoice.client_id] ?? `Cliente #${payingInvoice.client_id}`}
           onClose={() => setPayingInvoice(null)}
           onSuccess={loadData}
+        />
+      )}
+
+      {linkInfo && (
+        <PaymentLinkModal
+          invoice={linkInfo.invoice}
+          clientName={clients[linkInfo.invoice.client_id] ?? `Cliente #${linkInfo.invoice.client_id}`}
+          link={linkInfo.link}
+          onClose={() => setLinkInfo(null)}
         />
       )}
 
@@ -310,13 +409,23 @@ const Invoices = () => {
                     <td className="px-5 py-3.5"><StatusBadge status={inv.status} /></td>
                     <td className="px-5 py-3.5">
                       {inv.status !== 'pagado' && (
-                        <button
-                          onClick={() => setPayingInvoice(inv)}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 transition-colors"
-                        >
-                          <CreditCard className="w-3.5 h-3.5" />
-                          Registrar pago
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => setPayingInvoice(inv)}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 transition-colors"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            Registrar pago
+                          </button>
+                          <button
+                            onClick={() => handleGenerateLink(inv)}
+                            disabled={loadingLinkId === inv.id}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 disabled:opacity-60 border border-violet-200 rounded-lg px-3 py-1.5 transition-colors"
+                          >
+                            <Link2 className="w-3.5 h-3.5" />
+                            {loadingLinkId === inv.id ? 'Generando…' : 'Link MP'}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

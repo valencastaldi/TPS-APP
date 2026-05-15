@@ -1,0 +1,74 @@
+@echo off
+title PoolPay - Launcher
+
+echo ============================================================
+echo   PoolPay - Levantando backend + frontend + ngrok
+echo ============================================================
+echo.
+
+cd /d "%~dp0"
+
+REM ── Verificar puerto 8000 libre ─────────────────────────────
+netstat -an | findstr ":8000" | findstr "LISTENING" >nul
+if %errorlevel%==0 (
+    echo [AVISO] El puerto 8000 ya esta ocupado. Probablemente ya tenes
+    echo         un backend corriendo en otra ventana. Si queres relanzar
+    echo         desde cero, cerra esa ventana primero y volve a ejecutar.
+    echo.
+    set BACKEND_SKIP=1
+) else (
+    set BACKEND_SKIP=0
+)
+
+REM ── Verificar puerto 3000 libre ─────────────────────────────
+netstat -an | findstr ":3000" | findstr "LISTENING" >nul
+if %errorlevel%==0 (
+    echo [AVISO] El puerto 3000 ya esta ocupado (frontend ya corriendo).
+    echo.
+    set FRONTEND_SKIP=1
+) else (
+    set FRONTEND_SKIP=0
+)
+
+REM ── 1) Backend ──────────────────────────────────────────────
+if "%BACKEND_SKIP%"=="0" (
+    echo [1/3] Arrancando backend...
+    start "PoolPay Backend" cmd /k "cd /d %~dp0poolpay-backend && .venv\Scripts\activate && python -m uvicorn app.main:app --reload"
+    timeout /t 4 /nobreak >nul
+) else (
+    echo [1/3] Backend saltado: puerto 8000 ya en uso.
+)
+
+REM ── 2) Frontend ─────────────────────────────────────────────
+if "%FRONTEND_SKIP%"=="0" (
+    echo [2/3] Arrancando frontend...
+    start "PoolPay Frontend" cmd /k "cd /d %~dp0poolpay-frontend && call run.bat"
+) else (
+    echo [2/3] Frontend saltado: puerto 3000 ya en uso.
+)
+
+REM ── 3) ngrok ────────────────────────────────────────────────
+where ngrok >nul 2>&1
+if %errorlevel%==0 (
+    netstat -an | findstr ":4040" | findstr "LISTENING" >nul
+    if %errorlevel%==0 (
+        echo [3/3] ngrok saltado: ya hay un tunel corriendo en 127.0.0.1:4040
+    ) else (
+        echo [3/3] Arrancando ngrok...
+        timeout /t 2 /nobreak >nul
+        start "PoolPay ngrok" cmd /k "ngrok http 8000"
+    )
+) else (
+    echo [3/3] ngrok no esta en el PATH - saltado.
+)
+
+echo.
+echo ============================================================
+echo   Listo. Servicios disponibles en:
+echo ============================================================
+echo   Backend:   http://localhost:8000  (docs: /docs)
+echo   Frontend:  http://localhost:3000
+echo   ngrok dash: http://127.0.0.1:4040
+echo ============================================================
+echo.
+pause
