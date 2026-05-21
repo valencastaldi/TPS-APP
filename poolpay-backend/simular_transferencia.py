@@ -25,12 +25,25 @@ USO:
     # Custom completo (monto, nombre, dni)
     python simular_transferencia.py 1500 "Cliente Test Webhook" 12345678
 """
+import os
 import sys
 import json
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# 🛡️ Guard de producción — este script INYECTA PAGOS FALSOS en la DB.
+# Solo debe correr en entornos de desarrollo. Si la variable ENV=production
+# está seteada, el script aborta antes de hacer nada.
+if os.getenv("ENV", "").lower() == "production":
+    print("=" * 72)
+    print("  ❌ SCRIPT BLOQUEADO")
+    print("=" * 72)
+    print("  Este simulador crea pagos falsos. NO debe correr en producción.")
+    print("  Si esto fue un error, revertí ENV=production en tu entorno.")
+    print("=" * 72)
+    sys.exit(1)
 
 # ── Args ────────────────────────────────────────────────────────────────────
 AMOUNT = float(sys.argv[1]) if len(sys.argv) > 1 else 100.0

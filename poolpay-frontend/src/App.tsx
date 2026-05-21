@@ -9,6 +9,8 @@ import Invoices from './pages/Invoices'
 import Payments from './pages/Payments'
 import OrphanPayments from './pages/OrphanPayments'
 import Billing from './pages/Billing'
+import ServiceVisits from './pages/ServiceVisits'
+import Pileteros from './pages/Pileteros'
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
             <Route path="payments" element={<Payments />} />
             <Route path="orphan-payments" element={<OrphanPayments />} />
             <Route path="billing" element={<Billing />} />
+            <Route path="service-visits" element={<ServiceVisits />} />
+            <Route path="pileteros" element={<Pileteros />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

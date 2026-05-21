@@ -26,6 +26,7 @@ USO:
     python simular_webhook.py 42 250.50    # invoice_id=42, monto=250.50
 """
 
+import os
 import sys
 import json
 from datetime import datetime, timezone
@@ -33,6 +34,18 @@ from datetime import datetime, timezone
 # ── 1. Cargar variables de entorno ───────────────────────────────────────────
 from dotenv import load_dotenv
 load_dotenv()
+
+# 🛡️ Guard de producción — este script INYECTA PAGOS FALSOS en la DB.
+# Solo debe correr en entornos de desarrollo. Si la variable ENV=production
+# está seteada, el script aborta antes de hacer nada.
+if os.getenv("ENV", "").lower() == "production":
+    print("=" * 72)
+    print("  ❌ SCRIPT BLOQUEADO")
+    print("=" * 72)
+    print("  Este simulador crea pagos falsos. NO debe correr en producción.")
+    print("  Si esto fue un error, revertí ENV=production en tu entorno.")
+    print("=" * 72)
+    sys.exit(1)
 
 # ── 2. Parsear argumentos ────────────────────────────────────────────────────
 INVOICE_ID = int(sys.argv[1]) if len(sys.argv) > 1 else 107

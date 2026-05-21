@@ -1,6 +1,6 @@
 from datetime import datetime, date, timezone
 from typing import Optional
-from sqlmodel import SQLModel, Field, Column, String
+from sqlmodel import SQLModel, Field, Column, String, Boolean
 
 class Client(SQLModel, table=True):
     __tablename__ = "clients"
@@ -12,8 +12,11 @@ class Client(SQLModel, table=True):
     city: Optional[str] = Field(default=None, sa_column=Column(String(80)))
     neighborhood: Optional[str] = Field(default=None, sa_column=Column(String(80)))  # Barrio
     plan: str = Field(sa_column=Column(String(20)))  # "semanal", "quincenal", "mensual"
+    assigned_days: Optional[str] = Field(default=None, sa_column=Column(String(80)))  # "lunes,jueves"
     price: float = 0.0
     is_active: bool = True
+    lat: Optional[float] = None   # coordenadas para el mapa
+    lng: Optional[float] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Invoice(SQLModel, table=True):
@@ -73,6 +76,38 @@ class OrphanPayment(SQLModel, table=True):
     assigned_invoice_id: Optional[int] = Field(default=None, foreign_key="invoices.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     resolved_at: Optional[datetime] = None
+
+
+class Piletero(SQLModel, table=True):
+    """Empleado que hace las limpiezas. Cada uno tiene su API key propia
+    para autenticarse desde la app móvil."""
+    __tablename__ = "pileteros"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(sa_column=Column(String(120), nullable=False))
+    phone: Optional[str] = Field(default=None, sa_column=Column(String(30)))
+    api_key: str = Field(sa_column=Column(String(64), unique=True, index=True, nullable=False))
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ServiceVisit(SQLModel, table=True):
+    """Visita de limpieza. Una visita = una factura."""
+    __tablename__ = "service_visits"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    client_id: int = Field(foreign_key="clients.id")
+    piletero_id: Optional[int] = Field(default=None, foreign_key="pileteros.id")
+    visited_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    duration_minutes: Optional[int] = None
+    products_used: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+    notes: Optional[str] = Field(default=None, sa_column=Column(String(1000)))
+    price: float = 0.0
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoices.id")
+    payment_link_url: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+    whatsapp_status: str = Field(default="pending", sa_column=Column(String(20)))
+    # "pending" | "sent" | "failed" | "no_phone"
+    whatsapp_sent_at: Optional[datetime] = None
+    whatsapp_error: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ReminderLog(SQLModel, table=True):

@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "PoolPay Pileteros",
+    "slug": "poolpay-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.poolpay.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Usamos tu ubicación para marcar la posición de la pileta al registrar una visita."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.poolpay.mobile",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Usamos tu ubicación para registrar la posición de la pileta."
+        }
+      ]
+    ],
+    "scheme": "poolpay",
+    "extra": {
+      "eas": {
+        "projectId": "66ea3cbf-b5c8-482c-963f-3381eb293c4d"
+      }
+    }
+  }
+}

@@ -5,7 +5,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.db import init_db
 from app.auth import require_auth
-from app.routers import clients, invoices, payments, billing, mercadopago, bank, orphan_payments
+from app.routers import clients, invoices, payments, billing, mercadopago, bank, orphan_payments, service_visits, pileteros, piletero_app
 from app.routers.auth import router as auth_router
 from app.services.overdue import mark_overdue_sync, overdue_scheduler
 from app.services.billing_scheduler import billing_scheduler
@@ -62,6 +62,9 @@ app.include_router(billing.router, dependencies=_auth)
 app.include_router(bank.router, dependencies=_auth)
 app.include_router(orphan_payments.router, dependencies=_auth)
 app.include_router(mercadopago.router)  # webhook sin auth (lo llama MP)
+app.include_router(pileteros.router)       # auth interno (require_auth por router)
+app.include_router(service_visits.router)  # auth interno per-endpoint
+app.include_router(piletero_app.router)    # endpoints para la app móvil (X-Piletero-Key)
 
 
 @app.get("/")

@@ -55,38 +55,46 @@ except Exception:
 from app import models as _models  # noqa: F401
 
 
-def _mysql_add_missing_columns(conn):
+def _mysql_add_missing_columns(engine):
+    """Agrega columnas nuevas a tablas existentes si no existen.
+    Usa una conexión con autocommit para evitar conflictos con el context manager."""
     try:
         url = make_url(raw_url)
         if not url.get_backend_name().startswith("mysql"):
             return
         db_name = url.database
-        # neighborhood column in clients
-        exists_sql = text(
-            """
-            SELECT COUNT(*) AS cnt
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'neighborhood'
-            """
-        )
-        res = conn.execute(exists_sql, {"db": db_name}).scalar()
-        if not res:
-            conn.execute(text("ALTER TABLE `clients` ADD COLUMN `neighborhood` VARCHAR(80) NULL AFTER `city`"))
-            conn.commit()
-            logging.getLogger(__name__).info("Migracion: columna 'neighborhood' agregada a 'clients'.")
+
+        # Lista de (tabla, columna, DDL completo)
+        migrations = [
+            ("clients", "neighborhood", "ALTER TABLE `clients` ADD COLUMN `neighborhood` VARCHAR(80) NULL AFTER `city`"),
+            ("clients", "lat",          "ALTER TABLE `clients` ADD COLUMN `lat` DOUBLE NULL"),
+            ("clients", "lng",          "ALTER TABLE `clients` ADD COLUMN `lng` DOUBLE NULL"),
+            ("clients", "assigned_days","ALTER TABLE `clients` ADD COLUMN `assigned_days` VARCHAR(80) NULL"),
+        ]
+
+        with engine.connect() as conn:
+            for table, col, ddl in migrations:
+                res = conn.execute(
+                    text(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                        "WHERE TABLE_SCHEMA=:db AND TABLE_NAME=:tbl AND COLUMN_NAME=:col"
+                    ),
+                    {"db": db_name, "tbl": table, "col": col},
+                ).scalar()
+                if not res:
+                    conn.execute(text(ddl))
+                    conn.commit()
+                    logging.getLogger(__name__).info(f"Migracion: columna '{col}' agregada a '{table}'.")
+
     except Exception as e:
         logging.getLogger(__name__).warning(f"Migracion automatica omitida: {e}")
 
 
 def init_db():
-    # Ensure tables exist
+    # Ensure new tables exist
     SQLModel.metadata.create_all(engine)
-    # Run lightweight migrations (MySQL)
-    try:
-        with engine.begin() as conn:
-            _mysql_add_missing_columns(conn)
-    except Exception as e:
-        logging.getLogger(__name__).warning(f"No se pudieron aplicar migraciones: {e}")
+    # Run lightweight migrations (agrega columnas nuevas a tablas existentes)
+    _mysql_add_missing_columns(engine)
 
 
 def get_session():
