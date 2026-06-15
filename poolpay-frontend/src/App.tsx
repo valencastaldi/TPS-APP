@@ -11,6 +11,7 @@ import OrphanPayments from './pages/OrphanPayments'
 import Billing from './pages/Billing'
 import ServiceVisits from './pages/ServiceVisits'
 import Pileteros from './pages/Pileteros'
+import RoutesPage from './pages/Routes'
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
             <Route path="orphan-payments" element={<OrphanPayments />} />
             <Route path="billing" element={<Billing />} />
             <Route path="service-visits" element={<ServiceVisits />} />
+            <Route path="routes" element={<RoutesPage />} />
             <Route path="pileteros" element={<Pileteros />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

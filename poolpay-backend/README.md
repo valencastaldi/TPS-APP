@@ -65,8 +65,7 @@ API REST para gestión de clientes, facturación y pagos con FastAPI + MySQL.
 - `GET /billing/overdue` - Facturas vencidas
 - `GET /billing/stats` - Estadísticas generales
 
-Ver documentación completa en: http://localhost:8000/docs  
-Ver guía de uso: **API_COMPLETA.md**
+Ver documentación completa en: http://localhost:8000/docs
 
 ---
 

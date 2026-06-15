@@ -1,7 +1,8 @@
 """Endpoints consumidos por la app móvil del piletero.
 Todos usan X-Piletero-Key para auth (no JWT de admin).
 """
-from datetime import datetime, timezone
+import datetime as _dt
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,7 +11,7 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.auth_piletero import require_piletero
-from app.models import Client, Piletero, ServiceVisit
+from app.models import Client, Piletero, RouteEntry, ServiceVisit
 
 router = APIRouter(prefix="/piletero", tags=["piletero-app"])
 _dep = [Depends(require_piletero)]
@@ -48,7 +49,6 @@ class MyVisitOut(BaseModel):
     invoice_id: Optional[int]
     payment_link_url: Optional[str]
     whatsapp_status: str
-    wame_url: Optional[str] = None
 
 
 class UpdateClientCoords(BaseModel):
@@ -116,6 +116,53 @@ def my_visits(
             whatsapp_status=v.whatsapp_status,
         ))
     return result
+
+
+# ── GET /piletero/route ─────────────────────────────────────────────────────
+class RouteDayForApp(BaseModel):
+    date: _dt.date
+    neighborhoods: List[str]
+    clients: List[ClientMapItem]
+
+
+@router.get("/route", response_model=RouteDayForApp, dependencies=_dep)
+def route_for_day(day: Optional[date] = None, session: Session = Depends(get_session)):
+    """Ruta del día: barrios agendados + clientes a visitar.
+    Sin parámetro `day` devuelve la de hoy."""
+    target = day or datetime.now(timezone.utc).date()
+    entries = session.exec(
+        select(RouteEntry).where(RouteEntry.date == target)
+    ).all()
+
+    neighborhoods = [e.neighborhood for e in entries if e.neighborhood]
+    extra_ids = [e.client_id for e in entries if e.client_id]
+
+    by_id: dict[int, Client] = {}
+    if neighborhoods:
+        for c in session.exec(
+            select(Client).where(
+                Client.is_active == True,
+                Client.neighborhood.in_(neighborhoods),
+            )
+        ).all():
+            by_id[c.id] = c
+    if extra_ids:
+        for c in session.exec(select(Client).where(Client.id.in_(extra_ids))).all():
+            by_id.setdefault(c.id, c)
+
+    clients = sorted(by_id.values(), key=lambda c: (c.neighborhood or "", c.name))
+    return RouteDayForApp(
+        date=target,
+        neighborhoods=neighborhoods,
+        clients=[
+            ClientMapItem(
+                id=c.id, name=c.name, address=c.address, city=c.city,
+                neighborhood=c.neighborhood, plan=c.plan, assigned_days=c.assigned_days,
+                price=c.price, lat=c.lat, lng=c.lng,
+            )
+            for c in clients
+        ],
+    )
 
 
 # ── PATCH /piletero/clients/{id}/coords ────────────────────────────────────

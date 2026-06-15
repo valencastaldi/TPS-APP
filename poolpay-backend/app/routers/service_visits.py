@@ -13,6 +13,7 @@ from app.auth_piletero import require_piletero
 from app.models import Client, Invoice, Payment, Piletero, ServiceVisit
 from app.services.mercadopago_service import MercadoPagoService
 from app.services.whatsapp_sender import send_payment_link
+from app.services.spellcheck import correct_text
 
 logger = logging.getLogger("poolpay.service_visits")
 router = APIRouter(prefix="/service-visits", tags=["service-visits"])
@@ -47,7 +48,6 @@ class ServiceVisitOut(BaseModel):
     whatsapp_status: str
     whatsapp_sent_at: Optional[datetime]
     whatsapp_error: Optional[str]
-    wame_url: Optional[str] = None  # solo se devuelve cuando provider=wame y status=pending
 
 
 # ── Endpoint principal: lo llama la app móvil ──────────────────────────────
@@ -101,8 +101,6 @@ def create_visit(
     session.add(visit)
     session.flush()
 
-    wame_url: Optional[str] = None
-
     if payload.paid_cash:
         # 3a. Pago en efectivo registrado por el piletero: no hace falta link ni WhatsApp.
         payment = Payment(
@@ -136,7 +134,7 @@ def create_visit(
     session.commit()
     session.refresh(visit)
 
-    return _to_out(session, visit, wame_url=wame_url)
+    return _to_out(session, visit)
 
 
 # ── Endpoints admin ────────────────────────────────────────────────────────
@@ -160,6 +158,38 @@ def get_visit(visit_id: int, session: Session = Depends(get_session)):
     visit = session.get(ServiceVisit, visit_id)
     if not visit:
         raise HTTPException(404, "Visita no encontrada")
+    return _to_out(session, visit)
+
+
+class VisitNotesUpdate(BaseModel):
+    notes: Optional[str] = None
+    products_used: Optional[str] = None
+
+
+class TextIn(BaseModel):
+    text: str
+
+
+@router.post("/correct-text", dependencies=[Depends(require_auth)])
+def correct_note_text(payload: TextIn):
+    """Corrige la ortografía de un texto (offline). El operador revisa antes de guardar."""
+    return {"corrected": correct_text(payload.text)}
+
+
+@router.patch("/{visit_id}", response_model=ServiceVisitOut, dependencies=[Depends(require_auth)])
+def update_visit(visit_id: int, payload: VisitNotesUpdate, session: Session = Depends(get_session)):
+    """Editar notas/productos de una visita desde el dashboard (por si el piletero se equivocó)."""
+    visit = session.get(ServiceVisit, visit_id)
+    if not visit:
+        raise HTTPException(404, "Visita no encontrada")
+    data = payload.model_dump(exclude_unset=True)
+    if "notes" in data:
+        visit.notes = data["notes"]
+    if "products_used" in data:
+        visit.products_used = data["products_used"]
+    session.add(visit)
+    session.commit()
+    session.refresh(visit)
     return _to_out(session, visit)
 
 
@@ -208,6 +238,7 @@ def resend_whatsapp(visit_id: int, session: Session = Depends(get_session)):
         amount=visit.price,
         payment_link=visit.payment_link_url,
         period=visit.visited_at.strftime("%Y-%m"),
+        notes=visit.notes,
     )
     visit.whatsapp_status = wa["status"]
     if wa["status"] == "sent":
@@ -219,7 +250,7 @@ def resend_whatsapp(visit_id: int, session: Session = Depends(get_session)):
 
 
 # ── Helper ─────────────────────────────────────────────────────────────────
-def _to_out(session: Session, visit: ServiceVisit, wame_url: Optional[str] = None) -> ServiceVisitOut:
+def _to_out(session: Session, visit: ServiceVisit) -> ServiceVisitOut:
     client = session.get(Client, visit.client_id)
     piletero = session.get(Piletero, visit.piletero_id) if visit.piletero_id else None
     invoice = session.get(Invoice, visit.invoice_id) if visit.invoice_id else None
@@ -249,5 +280,4 @@ def _to_out(session: Session, visit: ServiceVisit, wame_url: Optional[str] = Non
         whatsapp_status=visit.whatsapp_status,
         whatsapp_sent_at=visit.whatsapp_sent_at,
         whatsapp_error=visit.whatsapp_error,
-        wame_url=wame_url,
     )

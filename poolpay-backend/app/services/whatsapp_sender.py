@@ -19,12 +19,23 @@ logger = logging.getLogger("poolpay.whatsapp")
 PROVIDER = os.getenv("WHATSAPP_PROVIDER", "wame").lower()
 
 
-def _build_message(client_name: str, amount: float, payment_link: str, period: Optional[str] = None) -> str:
-    """Mensaje plantilla para mandarle al cliente."""
+def _build_message(
+    client_name: str,
+    amount: float,
+    payment_link: str,
+    period: Optional[str] = None,
+    notes: Optional[str] = None,
+) -> str:
+    """Mensaje plantilla para mandarle al cliente.
+    Si hay notas del piletero, se incluyen antes del link de pago."""
     period_str = f" - Período {period}" if period else ""
+    note_block = ""
+    if notes and notes.strip():
+        note_block = f"\nNota del servicio: {notes.strip()}\n"
     return (
         f"Hola {client_name}!\n\n"
-        f"Te paso el link de pago de tu servicio de limpieza{period_str}:\n\n"
+        f"Te paso el link de pago de tu servicio de limpieza{period_str}:\n"
+        f"{note_block}\n"
         f"Total: ${amount:.0f}\n"
         f"Link de pago: {payment_link}\n\n"
         f"Muchas gracias!"
@@ -37,6 +48,7 @@ def send_payment_link(
     amount: float,
     payment_link: str,
     period: Optional[str] = None,
+    notes: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Devuelve dict con 'status': 'sent' | 'pending' | 'failed' | 'no_phone',
     y opcionalmente 'wame_url' (para mostrarlo al admin) o 'error' (si falló)."""
@@ -44,7 +56,7 @@ def send_payment_link(
     if not phone:
         return {"status": "no_phone"}
 
-    message = _build_message(client_name, amount, payment_link, period)
+    message = _build_message(client_name, amount, payment_link, period, notes)
     phone_normalized = "".join(c for c in phone if c.isdigit())
     if not phone_normalized.startswith("54"):  # Argentina
         phone_normalized = "54" + phone_normalized.lstrip("0")

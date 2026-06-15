@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Sparkles, RefreshCw, MessageCircle, ExternalLink, Copy, CheckCircle2, Clock, XCircle, PhoneOff, Trash2 } from 'lucide-react'
+import { Sparkles, RefreshCw, MessageCircle, ExternalLink, Copy, CheckCircle2, Clock, XCircle, PhoneOff, Trash2, Pencil, Wand2, X } from 'lucide-react'
 import { serviceVisitsApi, type ServiceVisitOut } from '../api/serviceVisits'
 import Spinner from '../components/Spinner'
 import ErrorState from '../components/ErrorState'
@@ -54,6 +54,10 @@ const ServiceVisits = () => {
   const [actioningId, setActioningId] = useState<number | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [editVisit, setEditVisit] = useState<ServiceVisitOut | null>(null)
+  const [editNotes, setEditNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
 
   useEffect(() => {
     load()
@@ -97,6 +101,38 @@ const ServiceVisits = () => {
       alert(e?.response?.data?.detail ?? 'Error al borrar la visita')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const openEdit = (visit: ServiceVisitOut) => {
+    setEditVisit(visit)
+    setEditNotes(visit.notes ?? '')
+  }
+
+  const handleCorrect = async () => {
+    if (!editNotes.trim()) return
+    setCorrecting(true)
+    try {
+      const corrected = await serviceVisitsApi.correctText(editNotes)
+      setEditNotes(corrected)
+    } catch {
+      alert('No se pudo corregir el texto')
+    } finally {
+      setCorrecting(false)
+    }
+  }
+
+  const handleSaveNotes = async () => {
+    if (!editVisit) return
+    setSavingNotes(true)
+    try {
+      const updated = await serviceVisitsApi.updateNotes(editVisit.id, editNotes)
+      setVisits((prev) => prev.map((v) => (v.id === updated.id ? { ...v, notes: updated.notes } : v)))
+      setEditVisit(null)
+    } catch (e: any) {
+      alert(e?.response?.data?.detail ?? 'Error al guardar la nota')
+    } finally {
+      setSavingNotes(false)
     }
   }
 
@@ -294,6 +330,15 @@ const ServiceVisits = () => {
                           </button>
                         )}
 
+                        {/* Editar nota */}
+                        <button
+                          onClick={() => openEdit(v)}
+                          title="Editar nota del piletero"
+                          className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
                         {/* Borrar visita */}
                         <button
                           onClick={() => handleDelete(v)}
@@ -313,6 +358,51 @@ const ServiceVisits = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: editar nota + corregir ortografía */}
+      {editVisit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setEditVisit(null)}>
+          <div className="bg-white rounded-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="font-semibold text-slate-800">Nota para {editVisit.client_name}</h3>
+              <button onClick={() => setEditVisit(null)}><X className="w-5 h-5 text-slate-400" /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-slate-500">
+                Esta nota se incluye en el mensaje de WhatsApp al cliente. Revisá y corregí antes de enviar.
+              </p>
+              <textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={5}
+                placeholder="Sin nota"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={handleCorrect}
+                  disabled={correcting || !editNotes.trim()}
+                  className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {correcting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                  Corregir ortografía
+                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditVisit(null)}
+                    className="px-4 py-2 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200">
+                    Cancelar
+                  </button>
+                  <button onClick={handleSaveNotes} disabled={savingNotes}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                    {savingNotes ? 'Guardando…' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

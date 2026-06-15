@@ -1,4 +1,8 @@
 """Fixtures compartidas para los tests de PoolPay."""
+import os
+# Auth deshabilitada para toda la suite (tests locales). Debe setearse antes de importar la app.
+os.environ.setdefault("ALLOW_NO_AUTH", "true")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine

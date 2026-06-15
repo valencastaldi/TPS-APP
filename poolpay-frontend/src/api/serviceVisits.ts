@@ -18,7 +18,6 @@ export interface ServiceVisitOut {
   whatsapp_status: 'pending' | 'sent' | 'failed' | 'no_phone';
   whatsapp_sent_at: string | null;
   whatsapp_error: string | null;
-  wame_url: string | null;
 }
 
 export const serviceVisitsApi = {
@@ -42,5 +41,15 @@ export const serviceVisitsApi = {
   remove: async (id: number) => {
     const { data } = await api.delete<{ ok: boolean; id: number }>(`/service-visits/${id}`);
     return data;
+  },
+
+  updateNotes: async (id: number, notes: string) => {
+    const { data } = await api.patch<ServiceVisitOut>(`/service-visits/${id}`, { notes });
+    return data;
+  },
+
+  correctText: async (text: string) => {
+    const { data } = await api.post<{ corrected: string }>('/service-visits/correct-text', { text });
+    return data.corrected;
   },
 };

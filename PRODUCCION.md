@@ -125,20 +125,7 @@ Hoy estás con un token `TEST-...` (sandbox). Para procesar pagos reales:
 > ⚠️ Con el token de producción, los pagos son REALES. Probá primero con
 > montos chiquitos.
 
-### 7. Bloquear los scripts simuladores
-
-Los scripts `simular_webhook.py` y `simular_transferencia.py` ya tienen
-guard `if ENV=production: exit(1)`, pero asegurate de:
-
-1. **Setear `ENV=production` en el `.env` del server**:
-   ```
-   ENV=production
-   ```
-2. **O directamente NO copiar los archivos al server**:
-   - Agregalos a `.dockerignore` si usás Docker
-   - Excluilos del rsync / git deploy
-
-### 8. Activar `--proxy-headers` y deshabilitar `--reload` en uvicorn
+### 7. Activar `--proxy-headers` y deshabilitar `--reload` en uvicorn
 
 En dev usás `uvicorn app.main:app --reload`. En producción NO.
 
@@ -158,7 +145,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allo
 
 ## 🟡 Importantes — deberían estar antes de producción
 
-### 9. Settear `BILLING_DUE_DAY` correctamente
+### 8. Settear `BILLING_DUE_DAY` correctamente
 
 Hoy está en 10. Si tus clientes vencen otro día, ajustalo:
 
@@ -166,7 +153,7 @@ Hoy está en 10. Si tus clientes vencen otro día, ajustalo:
 BILLING_DUE_DAY=15
 ```
 
-### 10. SMTP para recordatorios de cobranza
+### 9. SMTP para recordatorios de cobranza
 
 Si querés que el scheduler de recordatorios mande mails:
 
@@ -182,7 +169,7 @@ SMTP_TLS=true
 > Para Gmail necesitás un "App Password" generado desde tu cuenta Google,
 > no tu password normal.
 
-### 11. Configurar HTTPS con certificado válido
+### 10. Configurar HTTPS con certificado válido
 
 ngrok te resolvía esto en dev. En prod necesitás:
 
@@ -192,7 +179,7 @@ ngrok te resolvía esto en dev. En prod necesitás:
 Tu `API_URL` y `FRONTEND_URL` en `.env` deberían apuntar a `https://...`,
 no `http://`.
 
-### 12. Backups de la BD
+### 11. Backups de la BD
 
 Antes de production, configurá:
 
@@ -207,12 +194,12 @@ Probá una restauración al menos UNA vez antes de confiar.
 
 ## 🟢 Recomendados — nice to have
 
-### 13. Logs estructurados (JSON) en lugar de texto plano
+### 12. Logs estructurados (JSON) en lugar de texto plano
 
 Si vas a procesar logs con Datadog/Sentry/Loki, conviene formatearlos JSON.
 Agregar `python-json-logger` y configurar en `app/main.py`.
 
-### 14. Rate limiting
+### 13. Rate limiting
 
 Instalar `slowapi`:
 
@@ -232,7 +219,7 @@ Y al webhook:
 async def webhook(...):
 ```
 
-### 15. Monitoring de errores
+### 14. Monitoring de errores
 
 Conectar Sentry:
 ```
@@ -244,11 +231,11 @@ import sentry_sdk
 sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"))
 ```
 
-### 16. Métricas Prometheus/Grafana
+### 15. Métricas Prometheus/Grafana
 
 Si vas a tener volumen, exponer `/metrics` con `prometheus-fastapi-instrumentator`.
 
-### 17. Migrar montos `float` → `Decimal`
+### 16. Migrar montos `float` → `Decimal`
 
 Cambio invasivo (toca models.py, billing.py, payment_matcher.py) pero la
 forma correcta de manejar plata. Te garantiza precisión exacta.

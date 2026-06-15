@@ -12,6 +12,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 openpyxl
+pyspellchecker
 
 # Testing
 pytest

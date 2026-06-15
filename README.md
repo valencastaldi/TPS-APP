@@ -2,11 +2,12 @@
 
 ## 📚 Documentación Completa
 
-- 📖 [**Guía de Pagos Automáticos**](README_PAGOS_AUTOMATICOS.md) - Paso a paso para configurar
-- 🔧 [**Implementación Completa**](IMPLEMENTACION_COMPLETA.md) - Detalles técnicos
+- 🧪 [**Testear Pagos Automáticos**](TESTEAR_PAGOS_AUTOMATICOS.md) - Guía paso a paso para probar el webhook de MP end-to-end
+- 📱 [**API Pileteros**](README_API_PILETEROS.md) - Contrato HTTP de la app móvil
+- 🗺️ [**Roadmap**](ROADMAP.md) - Estado del proyecto y trabajo pendiente
+- 🚀 [**Checklist Producción**](PRODUCCION.md) - Pasos antes de deployar
 - ⚙️ [**Backend README**](poolpay-backend/README.md) - API y configuración
 - 🎨 [**Frontend README**](poolpay-frontend/README.md) - UI y componentes
-- 💳 [**Guía MercadoPago**](poolpay-backend/PAGOS_AUTOMATICOS.md) - Configuración del webhook
 
 ## 📁 Estructura del Proyecto
 
@@ -28,9 +29,11 @@ TPS-APP/
 │   │   └── components/       # Componentes reutilizables
 │   └── package.json          # Dependencias Node
 │
-├── README_PAGOS_AUTOMATICOS.md   # Guía de uso
-├── IMPLEMENTACION_COMPLETA.md    # Documentación técnica
-└── run.bat                        # Ejecuta todo el sistema
+├── TESTEAR_PAGOS_AUTOMATICOS.md  # Guía para testear webhook MP
+├── README_API_PILETEROS.md       # Contrato HTTP app móvil
+├── ROADMAP.md                    # Estado del proyecto
+├── PRODUCCION.md                 # Checklist pre-deploy
+└── start-all.bat                 # Ejecuta backend + frontend
 ```
 
 ## 🔧 Tecnologías
@@ -61,7 +64,7 @@ TPS-APP/
 5. Configura el webhook: `https://tu-dominio.com/mercadopago/webhook`
 6. ¡Listo! Los pagos se registrarán automáticamente
 
-Ver guía completa: [README_PAGOS_AUTOMATICOS.md](README_PAGOS_AUTOMATICOS.md)
+Ver guía completa: [TESTEAR_PAGOS_AUTOMATICOS.md](TESTEAR_PAGOS_AUTOMATICOS.md)
 
 ## 🎯 Flujo de Trabajo
 
@@ -91,7 +94,7 @@ Ver guía completa: [README_PAGOS_AUTOMATICOS.md](README_PAGOS_AUTOMATICOS.md)
 ## 📞 Soporte
 
 Para problemas o preguntas:
-1. Revisa la documentación en `README_PAGOS_AUTOMATICOS.md`
+1. Revisa la documentación en `TESTEAR_PAGOS_AUTOMATICOS.md`
 2. Consulta los logs del backend
 3. Verifica la configuración en `.env`
 

@@ -66,7 +66,6 @@ def test_create_visit_happy_path(mock_mp, mock_wa, client: TestClient, session: 
     assert data["invoice_id"] is not None
     assert data["payment_link_url"] == _MP_SUCCESS["init_point"]
     assert data["whatsapp_status"] == "pending"
-    assert data["wame_url"] is None
     # El piletero no contacta al cliente: send_payment_link no debe llamarse al crear
     mock_wa.assert_not_called()
     assert data["price"] == c.price
@@ -238,3 +237,35 @@ def test_delete_visit_not_found(client: TestClient, session: Session):
     os.environ["ALLOW_NO_AUTH"] = "true"
     resp = client.delete("/service-visits/99999")
     assert resp.status_code == 404
+
+
+def test_update_visit_notes(client: TestClient, session: Session):
+    """El dashboard puede editar la nota de una visita."""
+    c = _make_client(session)
+    p = _make_piletero(session)
+    visit = _make_visit_with_invoice(session, c, p)
+
+    os.environ["ALLOW_NO_AUTH"] = "true"
+    resp = client.patch(f"/service-visits/{visit.id}", json={"notes": "Cambiar arena del filtro"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["notes"] == "Cambiar arena del filtro"
+
+
+def test_correct_text_endpoint(client: TestClient, session: Session):
+    """Corrige tildes y letras repetidas; no corrompe palabras válidas."""
+    os.environ["ALLOW_NO_AUTH"] = "true"
+    resp = client.post("/service-visits/correct-text",
+                       json={"text": "proxima vez agregar cloroo"})
+    assert resp.status_code == 200, resp.text
+    corrected = resp.json()["corrected"]
+    assert "próxima" in corrected
+    assert "cloro" in corrected and "cloroo" not in corrected
+
+
+def test_message_includes_notes():
+    """El mensaje al cliente incluye la nota del piletero cuando existe."""
+    from app.services.whatsapp_sender import _build_message
+    msg = _build_message("Ana", 5000, "http://pay", "2026-05", notes="Filtro sucio")
+    assert "Filtro sucio" in msg
+    msg2 = _build_message("Ana", 5000, "http://pay", "2026-05", notes=None)
+    assert "Nota" not in msg2

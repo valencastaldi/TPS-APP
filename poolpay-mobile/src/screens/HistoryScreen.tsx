@@ -134,8 +134,6 @@ export default function HistoryScreen() {
                     <TouchableOpacity
                       style={styles.waBtn}
                       onPress={() => {
-                        // Re-fetch the wame_url via resend endpoint
-                        // Por ahora abrimos el payment link directamente
                         if (v.payment_link_url) Linking.openURL(v.payment_link_url);
                       }}
                     >

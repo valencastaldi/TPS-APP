@@ -33,7 +33,12 @@ export interface MyVisit {
   paid_cash: boolean;
   payment_link_url: string | null;
   whatsapp_status: 'pending' | 'sent' | 'failed' | 'no_phone';
-  wame_url: string | null;
+}
+
+export interface RouteToday {
+  date: string;
+  neighborhoods: string[];
+  clients: ClientMapItem[];
 }
 
 export interface CreateVisitPayload {
@@ -61,6 +66,12 @@ export const pileteroApi = {
   // Lista de clientes para seleccionar al registrar visita
   getClients: async (): Promise<ClientMapItem[]> => {
     const { data } = await api.get<ClientMapItem[]>('/piletero/clients');
+    return data;
+  },
+
+  // Ruta del día (barrios + clientes a visitar hoy)
+  getRouteToday: async (): Promise<RouteToday> => {
+    const { data } = await api.get<RouteToday>('/piletero/route');
     return data;
   },
 

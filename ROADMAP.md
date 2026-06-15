@@ -18,8 +18,7 @@ Estado del proyecto y trabajo pendiente, en orden de prioridad.
 
 ### Pagos automáticos end-to-end
 - Setup completo TEST de MercadoPago (token, ngrok, panel webhook)
-- Validación del webhook con script `simular_webhook.py` (POSTs realistas al webhook con datos mockeados)
-- Pago de prueba registrado correctamente vía link MP
+- Validación del webhook con pago de prueba registrado correctamente vía link MP
 
 ### Auto-match inteligente de transferencias CBU
 - Tabla `OrphanPayment` para pagos sin link
@@ -29,7 +28,6 @@ Estado del proyecto y trabajo pendiente, en orden de prioridad.
 - Endpoints `/orphan-payments` (list, detail, assign, discard, pending-count)
 - Página frontend `/orphan-payments` con candidatos rankeados, badges visuales y modales custom
 - Refresh instantáneo del badge sidebar via custom events (sin esperar 30s)
-- Script `simular_transferencia.py` para probar el flujo
 
 ### Infraestructura
 - `start-all.bat` que levanta backend + frontend + ngrok con detección de puerto ocupado
@@ -66,10 +64,6 @@ Estimación: ~30 min total
 - [ ] Activar `MP_VERIFY_SIGNATURE=true` y settear `MERCADOPAGO_WEBHOOK_SECRET`
       (obtener clave del panel MP > Webhooks)
 - [ ] Settear `BACKEND_CORS_ORIGINS` con tu dominio específico (no vacío)
-- [ ] Excluir simuladores de producción:
-      - Mover `simular_webhook.py` y `simular_transferencia.py` a `tests/dev/`
-      - O agregar guard `if os.getenv("ENV") == "production": sys.exit(1)` al inicio
-
 ### Race conditions y robustez
 
 - [ ] Wrap del check `ProcessedMpPayment` + insert con try/except `IntegrityError`
@@ -159,8 +153,8 @@ Cuando retomes:
 
 1. Levantá todo con `start-all.bat` (ya está testeado y andando).
 2. Abrí `ROADMAP.md` y eligí por dónde seguir.
-3. Si volvés a tener algún bug del flujo de pagos, revisar `IMPLEMENTACION_COMPLETA.md`
-   y `TESTEAR_PAGOS_AUTOMATICOS.md` que ya tienen toda la doc del setup.
+3. Si volvés a tener algún bug del flujo de pagos, revisar `TESTEAR_PAGOS_AUTOMATICOS.md`
+   que tiene toda la doc del setup.
 
 ### Archivos clave a recordar
 
@@ -175,8 +169,6 @@ Cuando retomes:
   - `src/components/ConfirmModal.tsx` — modal custom
   - `src/components/Layout.tsx` — sidebar con badge
 - **Scripts:**
-  - `poolpay-backend/simular_webhook.py` — simula webhook con link MP
-  - `poolpay-backend/simular_transferencia.py` — simula transferencia CBU
   - `start-all.bat` — levanta backend + frontend + ngrok
 
 ### Credenciales y endpoints

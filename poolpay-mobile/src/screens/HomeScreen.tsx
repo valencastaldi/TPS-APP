@@ -7,7 +7,7 @@ import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { pileteroApi, ClientMapItem, MyVisit } from '../api/pileteroApi';
+import { pileteroApi, ClientMapItem, MyVisit, RouteToday } from '../api/pileteroApi';
 
 const DAYS_ES: Record<string, string> = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
@@ -30,11 +30,11 @@ function formatDay(assigned_days: string | null) {
   return assigned_days.split(',').map(d => DAYS_ES[d.trim().toLowerCase()] ?? d.trim()).join(' · ');
 }
 
-function buildLeafletHTML(clients: ClientMapItem[], userLat?: number, userLng?: number): string {
+function buildLeafletHTML(clients: ClientMapItem[], todayIds: Set<number>, userLat?: number, userLng?: number): string {
   const markers = clients
     .filter(c => c.lat && c.lng)
     .map(c => {
-      const color = isClientToday(c) ? '#3b82f6' : '#64748b';
+      const color = todayIds.has(c.id) ? '#3b82f6' : '#64748b';
       const popup = `${c.name}${c.address ? '<br/>' + c.address : ''}${c.neighborhood ? '<br/>📍 ' + c.neighborhood : ''}`;
       return `
         L.circleMarker([${c.lat}, ${c.lng}], {
@@ -80,6 +80,7 @@ function buildLeafletHTML(clients: ClientMapItem[], userLat?: number, userLng?: 
 export default function HomeScreen() {
   const { profile, logout } = useAuth();
   const [clients, setClients] = useState<ClientMapItem[]>([]);
+  const [route, setRoute] = useState<RouteToday | null>(null);
   const [recentVisits, setRecentVisits] = useState<MyVisit[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,12 +92,14 @@ export default function HomeScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [cls, visits] = await Promise.all([
+      const [cls, visits, rt] = await Promise.all([
         pileteroApi.getClients(),
         pileteroApi.getMyVisits(),
+        pileteroApi.getRouteToday(),
       ]);
       setClients(cls);
       setRecentVisits(visits.slice(0, 5));
+      setRoute(rt);
     } catch { /* silencio */ }
   }, []);
 
@@ -117,10 +120,11 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const todayClients = clients.filter(isClientToday);
+  const todayClients = route?.clients ?? [];
+  const todayIds = new Set(todayClients.map(c => c.id));
   const mappableClients = clients.filter(c => c.lat && c.lng);
 
-  const mapHtml = buildLeafletHTML(clients, userLocation?.lat, userLocation?.lng);
+  const mapHtml = buildLeafletHTML(clients, todayIds, userLocation?.lat, userLocation?.lng);
 
   return (
     <ScrollView
@@ -179,12 +183,21 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Piletas de hoy */}
-      {todayClients.length > 0 && (
+      {/* Ruta de hoy */}
+      {todayClients.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            <Ionicons name="today-outline" size={16} color="#10b981" /> Para hoy ({todayClients.length})
+            <Ionicons name="today-outline" size={16} color="#10b981" /> Ruta de hoy ({todayClients.length})
           </Text>
+          {route && route.neighborhoods.length > 0 && (
+            <View style={styles.chipsRow}>
+              {route.neighborhoods.map(n => (
+                <View key={n} style={styles.chip}>
+                  <Text style={styles.chipText}>📍 {n}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           {todayClients.map(c => (
             <View key={c.id} style={styles.clientCard}>
               <View style={styles.clientCardLeft}>
@@ -198,6 +211,18 @@ export default function HomeScreen() {
               </View>
             </View>
           ))}
+        </View>
+      ) : (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            <Ionicons name="today-outline" size={16} color="#10b981" /> Ruta de hoy
+          </Text>
+          <View style={styles.emptyRoute}>
+            <Ionicons name="calendar-clear-outline" size={28} color="#334155" />
+            <Text style={styles.emptyRouteText}>
+              No hay ruta cargada para hoy.{'\n'}El admin la asigna desde el panel.
+            </Text>
+          </View>
         </View>
       )}
 
@@ -270,6 +295,19 @@ const styles = StyleSheet.create({
   map: { flex: 1, backgroundColor: '#1e293b' },
   mapPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, backgroundColor: '#1e293b' },
   mapPlaceholderText: { color: '#475569', fontSize: 12, textAlign: 'center', lineHeight: 18 },
+
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  chip: {
+    backgroundColor: '#1e293b', borderRadius: 999,
+    borderWidth: 1, borderColor: '#3b82f6', paddingHorizontal: 10, paddingVertical: 4,
+  },
+  chipText: { color: '#93c5fd', fontSize: 12, fontWeight: '600' },
+
+  emptyRoute: {
+    backgroundColor: '#1e293b', borderRadius: 14, padding: 24,
+    borderWidth: 1, borderColor: '#334155', alignItems: 'center', gap: 10,
+  },
+  emptyRouteText: { color: '#475569', fontSize: 12, textAlign: 'center', lineHeight: 18 },
 
   clientCard: {
     flexDirection: 'row', justifyContent: 'space-between',

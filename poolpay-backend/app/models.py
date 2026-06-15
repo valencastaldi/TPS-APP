@@ -1,3 +1,4 @@
+import datetime as _dt
 from datetime import datetime, date, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column, String, Boolean
@@ -107,6 +108,18 @@ class ServiceVisit(SQLModel, table=True):
     # "pending" | "sent" | "failed" | "no_phone"
     whatsapp_sent_at: Optional[datetime] = None
     whatsapp_error: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class RouteEntry(SQLModel, table=True):
+    """Una entrada de ruta para una fecha concreta.
+    Cada fila agenda en esa fecha o bien un barrio completo (neighborhood)
+    o bien un cliente puntual (client_id). El admin decide qué día va cada cosa."""
+    __tablename__ = "route_entries"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: _dt.date = Field(index=True)
+    neighborhood: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    client_id: Optional[int] = Field(default=None, foreign_key="clients.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

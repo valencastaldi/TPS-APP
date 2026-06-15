@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, Wallet, TrendingUp, Droplets, LogOut, AlertTriangle, Sparkles, UserCog } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Wallet, TrendingUp, Droplets, LogOut, AlertTriangle, Sparkles, UserCog, CalendarDays } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { orphanPaymentsApi } from '../api/orphanPayments'
 
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/orphan-payments', icon: AlertTriangle, label: 'Sin asignar', badge: 'orphans' as const },
   { path: '/billing', icon: TrendingUp, label: 'Facturación' },
   { path: '/service-visits', icon: Sparkles, label: 'Visitas' },
+  { path: '/routes', icon: CalendarDays, label: 'Rutas' },
   { path: '/pileteros', icon: UserCog, label: 'Pileteros' },
 ]
 
